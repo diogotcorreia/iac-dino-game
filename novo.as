@@ -16,11 +16,13 @@ TERRAIN_END     WORD    3
                 ORIG    0000h
 
                 MVI     R6, STACK_ORIGIN
-                MVI     R1, TERRAIN_START  ; altura
+                
+testLoop:       MVI     R1, TERRAIN_START  ; altura
                 MVI     R2, 80d ; terrain length
 
                 JAL     atualizajogo
 
+                BR      testLoop
 Fim:            BR      Fim
 
 
@@ -100,10 +102,12 @@ geracacto:      ; PUSH R4 & R5
 .probIf:        DEC     R1
                 AND     R3, R1, R2
                 INC     R3
-                INC     R1
                 ; return (x & R1 - 1) + 1
                 
-.funcEnd:       ; POP R5 & R4
+.funcEnd:       MVI     R4, seed
+                STOR    M[R4], R2
+
+                ; POP R5 & R4
                 LOAD    R5, M[R6]
                 INC     R6
                 LOAD    R4, M[R6]
