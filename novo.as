@@ -23,11 +23,44 @@ TERRAIN_END     WORD    3
 Fim:            BR      Fim
 
 
-atualizajogo:   
+atualizajogo:   DEC     R6
+                STOR    M[R6], R4
+                DEC     R6
+                STOR    M[R6], R5
+
                 ADD     R4, R1, R2 ; R1 = 4000h R2 = 80
                 DEC     R4 ; last element (R4) = R1 + R2 - 1
                 
-
+                LOAD    R5, M[R4]
+                
+                DEC     R6  ; Push R1
+                STOR    M[R6], R1
+                DEC     R6
+                STOR    M[R6], R7
+                
+                MVI     R1, CACTUS_HEIGHT
+                
+                JAL     geracacto
+                LOAD    R7, M[R6]
+                INC     R6
+                LOAD    R1, M[R1]
+                INC     R6
+                
+                STOR    M[R4], R3
+                
+.loop:          DEC     R4
+                LOAD    R2, M[R4]
+                STOR    M[R4], R5
+                MOV     R5, R2
+                CMP     R4, R1
+                BR.NN   .loop
+                
+                LOAD    R5, M[R6]
+                INC     R6
+                LOAD    R4, M[R6]
+                INC     R6
+                
+                JMP     R7
 
 
 
@@ -74,4 +107,3 @@ geracacto:      ; PUSH R4 & R5
                 
                 JMP     R7 
 ; end geracacto
-               
