@@ -16,14 +16,15 @@ TERRAIN_END     WORD    3
                 ORIG    0000h
 
                 MVI     R6, STACK_ORIGIN
-                MVI     R1, CACTUS_HEIGHT  ; altura
+                MVI     R1, TERRAIN_START  ; altura
+                MVI     R2, 80d ; terrain length
 
-                JAL     geracacto
+                JAL     atualizajogo
 
 Fim:            BR      Fim
 
 
-atualizajogo:   DEC     R6
+atualizajogo:   DEC     R6         ; PUSH R4 & R5
                 STOR    M[R6], R4
                 DEC     R6
                 STOR    M[R6], R5
@@ -31,37 +32,40 @@ atualizajogo:   DEC     R6
                 ADD     R4, R1, R2 ; R1 = 4000h R2 = 80
                 DEC     R4 ; last element (R4) = R1 + R2 - 1
                 
-                LOAD    R5, M[R4]
+                LOAD    R5, M[R4] ; R5 = last element value
                 
-                DEC     R6  ; Push R1
+                DEC     R6       ; PUSH R1 & R7
                 STOR    M[R6], R1
                 DEC     R6
                 STOR    M[R6], R7
                 
                 MVI     R1, CACTUS_HEIGHT
-                
                 JAL     geracacto
-                LOAD    R7, M[R6]
+                
+                LOAD    R7, M[R6]  ; POP R7 & R1
                 INC     R6
-                LOAD    R1, M[R1]
+                LOAD    R1, M[R6]
                 INC     R6
                 
-                STOR    M[R4], R3
+                STOR    M[R4], R3  ; save value from geracacto
                 
-.loop:          DEC     R4
+.loop:          ; shift all terrain values backwards
+                ; R2 -> original value
+                ; R5 -> value to replace with
+                DEC     R4
                 LOAD    R2, M[R4]
                 STOR    M[R4], R5
                 MOV     R5, R2
                 CMP     R4, R1
-                BR.NN   .loop
+                BR.P    .loop
                 
+                ; POP R5 & R4
                 LOAD    R5, M[R6]
                 INC     R6
                 LOAD    R4, M[R6]
                 INC     R6
                 
                 JMP     R7
-
 
 
 geracacto:      ; PUSH R4 & R5
