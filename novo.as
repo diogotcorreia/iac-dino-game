@@ -1,19 +1,22 @@
+STACK_ORIGIN    EQU     3000h
 RANDOM          EQU     b400h
 PROB            EQU     62258d
+CACTUS_HEIGHT   EQU     4h
 
-ORIG            0000h
+                ORIG    0000h
 
 seed            WORD    39263d ; this seed generates a 4 in the first try
 
-ORIG            4000h
-terreno         WORD    4
+                ORIG    4000h ; board
+                
+TERRAIN_START   WORD    4
 VETOR           TAB     78
-fimTerreno      WORD    3
+TERRAIN_END     WORD    3
 
-ORIG            0000h
+                ORIG    0000h
 
-                MVI     R6, 3000h
-                MVI     R1, 4  ; altura
+                MVI     R6, STACK_ORIGIN
+                MVI     R1, CACTUS_HEIGHT  ; altura
 
                 JAL     geracacto
 
@@ -21,13 +24,20 @@ Fim:            BR      Fim
 
 
 atualizajogo:   
-                ADD     R4, R1, R2
-                DEC     R4
+                ADD     R4, R1, R2 ; R1 = 4000h R2 = 80
+                DEC     R4 ; last element (R4) = R1 + R2 - 1
+                
 
 
 
 
-geracacto:      MVI     R4, seed
+geracacto:      ; PUSH R4 & R5
+                DEC     R6
+                STOR    M[R6], R4
+                DEC     R6
+                STOR    M[R6], R5
+
+                MVI     R4, seed
                 LOAD    R2, M[R4] ; load seed into R2
                 
                 MVI     R4, 1
@@ -41,21 +51,27 @@ geracacto:      MVI     R4, seed
                 MVI     R4, RANDOM
                 XOR     R2, R2, R4  ; end if
                 
-.bitIf:         NOP
-
-                MVI     R4, PROB
+.bitIf:         MVI     R4, PROB
                 
                 CMP     R2, R4
                 BR.NN   .probIf ; if x < 62258
                 
                 MVI     R3, 0
-                JMP     R7 ; return 0
+                BR      .funcEnd ; return 0
                 
                 
 .probIf:        DEC     R1
                 AND     R3, R1, R2
                 INC     R3
                 INC     R1
+                ; return (x & R1 - 1) + 1
                 
-                JMP     R7 ; return (x & R1 - 1) + 1
+.funcEnd:       ; POP R5 & R4
+                LOAD    R5, M[R6]
+                INC     R6
+                LOAD    R4, M[R6]
+                INC     R6
+                
+                JMP     R7 
+; end geracacto
                
