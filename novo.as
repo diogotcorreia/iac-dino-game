@@ -93,7 +93,7 @@ geracacto:      ; PUSH R4 & R5
 .bitIf:         MVI     R4, PROB
                 
                 CMP     R2, R4
-                BR.NN   .probIf ; if x < 62258
+                BR.NC   .probIf ; if x < 62258
                 
                 MVI     R3, 0
                 BR      .funcEnd ; return 0
