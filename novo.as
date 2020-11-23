@@ -198,6 +198,8 @@ PRINT_TERRAIN:  DEC     R6
                 STOR    M[R6], R5
                 
                 MVI     R1, TERM_CURSOR
+                MVI     R2, FFFFh
+                STOR    M[R1], R2
                 MVI     R2, TERM_TERRAIN
                 STOR    M[R1], R2
                 
@@ -205,12 +207,19 @@ PRINT_TERRAIN:  DEC     R6
                 MVI     R4, TERRAIN_START
                 MVI     R5, TERRAIN_SIZE
                 ADD     R5, R5, R4
-                MVI     R3, '0'
                 
 
 .loop:          LOAD    R2, M[R4]
-                ADD     R2, R2, R3
-                STOR    M[R1], R2
+                CMP     R2, R0
+                BR.Z    .ground
+                MVI     R3, '┴'
+                STOR    M[R1], R3
+                BR      .endif
+.ground:        MVI     R3, '─'
+                STOR    M[R1], R3
+                
+.endif:         
+
                 INC     R4
 
                 CMP     R4, R5
@@ -224,6 +233,7 @@ PRINT_TERRAIN:  DEC     R6
                 LOAD    R7, M[R6]
                 JMP     R7
                 
+
 
 ;*****************************************************************
 ; AUXILIARY INTERRUPT SERVICE ROUTINES
