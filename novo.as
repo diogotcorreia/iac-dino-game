@@ -2,10 +2,18 @@
 ; CONSTANTS
 ;-----------------------------------------------------------------
 ; GAME
+TERM_TERRAIN    EQU     1280h
+TERRAIN_SIZE    EQU     80d
 STACK_ORIGIN    EQU     3000h
 RANDOM          EQU     b400h
 PROB            EQU     62258d
 CACTUS_HEIGHT   EQU     4h
+;text window
+TERM_READ       EQU     FFFFh ; read characters
+TERM_WRITE      EQU     FFFEh ; write characters
+TERM_STATUS     EQU     FFFDh ; status (0-no key pressed, 1-key pressed)
+TERM_CURSOR     EQU     FFFCh ; position the cursor
+TERM_COLOR      EQU     FFFBh ; change the colors
 ; TIMER
 TIMER_CONTROL   EQU     FFF7h
 TIMER_COUNTER   EQU     FFF6h
@@ -26,7 +34,7 @@ TIMER_TICK      WORD    0      ; indicates the number of unattended
 
                 ORIG    4000h ; board
                 
-TERRAIN_START   TAB     80
+TERRAIN_START   TAB     TERRAIN_SIZE
 
 ;=================================================================
 ; MAIN: the starting point of your program
@@ -78,9 +86,11 @@ lifecycle:      ; DEC TIMER_TICK
                 STOR    M[R6], R7
                 
                 MVI     R1, TERRAIN_START  ; altura
-                MVI     R2, 80d ; terrain length
+                MVI     R2, TERRAIN_SIZE ; terrain length
 
                 JAL     atualizajogo
+                
+                JAL     PRINT_TERRAIN
 
                 LOAD    R7, M[R6]
                 INC     R6
@@ -176,6 +186,44 @@ geracacto:      ; PUSH R4 & R5
                 
                 JMP     R7 
 ; end geracacto
+;=================================================================
+; Print Terrain: 
+;-----------------------------------------------------------------
+                  
+PRINT_TERRAIN:  DEC     R6
+                STOR    M[R6], R7
+                DEC     R6
+                STOR    M[R6], R4
+                DEC     R6
+                STOR    M[R6], R5
+                
+                MVI     R1, TERM_CURSOR
+                MVI     R2, TERM_TERRAIN
+                STOR    M[R1], R2
+                
+                MVI     R1, TERM_WRITE
+                MVI     R4, TERRAIN_START
+                MVI     R5, TERRAIN_SIZE
+                ADD     R5, R5, R4
+                MVI     R3, '0'
+                
+
+.loop:          LOAD    R2, M[R4]
+                ADD     R2, R2, R3
+                STOR    M[R1], R2
+                INC     R4
+
+                CMP     R4, R5
+                BR.N    .loop
+                
+                
+                LOAD    R5, M[R6]
+                INC     R6
+                LOAD    R4, M[R6]
+                INC     R6
+                LOAD    R7, M[R6]
+                JMP     R7
+                
 
 ;*****************************************************************
 ; AUXILIARY INTERRUPT SERVICE ROUTINES
