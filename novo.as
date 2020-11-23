@@ -2,13 +2,13 @@
 ; CONSTANTS
 ;-----------------------------------------------------------------
 ; GAME
-TERM_TERRAIN    EQU     1280h
-TERRAIN_SIZE    EQU     80d
+TERM_TERRAIN    EQU     1900h ; line 25, column 0
+TERRAIN_SIZE    EQU     80d   ; width of terminal
 STACK_ORIGIN    EQU     3000h
 RANDOM          EQU     b400h
 PROB            EQU     62258d
-CACTUS_HEIGHT   EQU     4h
-;text window
+CACTUS_HEIGHT   EQU     4h    ; maximum cactus heigh
+; TEXT WINDOW
 TERM_READ       EQU     FFFFh ; read characters
 TERM_WRITE      EQU     FFFEh ; write characters
 TERM_STATUS     EQU     FFFDh ; status (0-no key pressed, 1-key pressed)
@@ -18,7 +18,7 @@ TERM_COLOR      EQU     FFFBh ; change the colors
 TIMER_CONTROL   EQU     FFF7h
 TIMER_COUNTER   EQU     FFF6h
 TIMER_SETSTART  EQU     1
-TIMER_INTERVAL  EQU     10
+TIMER_INTERVAL  EQU     3
 ; INTERRUPTIONS
 INT_MASK        EQU     FFFAh
 INT_MASK_VAL    EQU     8000h ; 1000 0000 0000 0000 b
@@ -45,45 +45,46 @@ TERRAIN_START   TAB     TERRAIN_SIZE
                 MVI     R6, STACK_ORIGIN
                 ; CONFIGURE TIMER ROUNTINES
                 ; interrupt mask
-                MVI     R1,INT_MASK
-                MVI     R2,INT_MASK_VAL
-                STOR    M[R1],R2
+                MVI     R1, INT_MASK
+                MVI     R2, INT_MASK_VAL
+                STOR    M[R1], R2
                 ; enable interruptions
                 ENI
                 
                 ; START TIMER
-                MVI     R2,TIMER_INTERVAL
-                MVI     R1,TIMER_COUNTER
-                STOR    M[R1],R2          ; set timer to count 10x100ms
-                MVI     R1,TIMER_TICK
-                STOR    M[R1],R0          ; clear all timer ticks
-                MVI     R1,TIMER_CONTROL
-                MVI     R2,TIMER_SETSTART
-                STOR    M[R1],R2          ; start timer
+                MVI     R2, TIMER_INTERVAL
+                MVI     R1, TIMER_COUNTER
+                STOR    M[R1], R2          ; set timer to count 10x100ms
+                MVI     R1, TIMER_TICK
+                STOR    M[R1], R0          ; clear all timer ticks
+                MVI     R1, TIMER_CONTROL
+                MVI     R2, TIMER_SETSTART
+                STOR    M[R1], R2          ; start timer
                 
                 ; WAIT FOR EVENT (TIMER/KEY)
                 ;MVI     R4,TERM_STATUS
-                MVI     R5,TIMER_TICK
+                MVI     R5, TIMER_TICK
                 
-mainLoop:       LOAD    R1,M[R5]
-                CMP     R1,R0
+mainLoop:       LOAD    R1, M[R5]
+                CMP     R1, R0
                 JAL.NZ  lifecycle
                 
                 BR      mainLoop
 
 ;=================================================================
-; lifecycle: function that handles every game tick (~1 sec)
+; lifecycle: function that handles every game tick (~0.3 sec)
 ;-----------------------------------------------------------------
 lifecycle:      ; DEC TIMER_TICK
                 MVI     R2, TIMER_TICK
-                DSI     ; critical region: if an interruption occurs, value might become wrong
+                DSI     ; critical region: if an interruption occurs,
+                        ; value might become wrong
                 LOAD    R1, M[R2]
                 DEC     R1
                 STOR    M[R2], R1
                 ENI
                 
                 DEC     R6
-                STOR    M[R6], R7
+                STOR    M[R6], R7 ; PUSH R7
                 
                 MVI     R1, TERRAIN_START  ; altura
                 MVI     R2, TERRAIN_SIZE ; terrain length
@@ -97,6 +98,9 @@ lifecycle:      ; DEC TIMER_TICK
                 
                 JMP     R7
 
+;=================================================================
+; lifecycle: shift the terrain to the left and add new cactus
+;-----------------------------------------------------------------
 atualizajogo:   DEC     R6         ; PUSH R4 & R5
                 STOR    M[R6], R4
                 DEC     R6
@@ -140,7 +144,9 @@ atualizajogo:   DEC     R6         ; PUSH R4 & R5
                 
                 JMP     R7
 
-
+;=================================================================
+; geracacto: pseudo-randomly generate cactus heights
+;-----------------------------------------------------------------
 geracacto:      ; PUSH R4 & R5
                 DEC     R6
                 STOR    M[R6], R4
@@ -185,12 +191,12 @@ geracacto:      ; PUSH R4 & R5
                 INC     R6
                 
                 JMP     R7 
-; end geracacto
+
 ;=================================================================
-; Print Terrain: 
+; Print Terrain: Clear the terminal and print the terrain with cactus
 ;-----------------------------------------------------------------
                   
-PRINT_TERRAIN:  DEC     R6
+PRINT_TERRAIN:  DEC     R6         ; PUSH R7, R4 & R5
                 STOR    M[R6], R7
                 DEC     R6
                 STOR    M[R6], R4
@@ -198,67 +204,135 @@ PRINT_TERRAIN:  DEC     R6
                 STOR    M[R6], R5
                 
                 MVI     R1, TERM_CURSOR
-                MVI     R2, FFFFh
+                MVI     R2, FFFFh ; clear terminal
                 STOR    M[R1], R2
-                MVI     R2, TERM_TERRAIN
+                MVI     R2, TERM_TERRAIN  ; position cursor at line 25
                 STOR    M[R1], R2
                 
+                ; prepare loop variables
                 MVI     R1, TERM_WRITE
-                MVI     R4, TERRAIN_START
+                MOV     R4, R0
                 MVI     R5, TERRAIN_SIZE
-                ADD     R5, R5, R4
                 
 
-.loop:          LOAD    R2, M[R4]
+.loop:          ; load terrain value at R4
+                MVI     R3, TERRAIN_START
+                ADD     R3, R3, R4
+                LOAD    R2, M[R3]
+                
                 CMP     R2, R0
                 BR.Z    .ground
+                ; if cactus
                 MVI     R3, '┴'
                 STOR    M[R1], R3
+                
+                ; PUSH R1 & R3
+                DEC     R6
+                STOR    M[R6], R1
+                DEC     R6
+                STOR    M[R6], R3
+                ; R1 - column index, R2 - cactus value
+                MOV     R1, R4
+                JAL     PRINT_CACTUS
+                
+                ; restore cursor location
+                MVI     R1, TERM_CURSOR
+                MVI     R2, TERM_TERRAIN
+                ADD     R2, R2, R4
+                INC     R2
+                STOR    M[R1], R2
+                
+                ; POP R1 & R3
+                LOAD    R3, M[R6]
+                INC     R6
+                LOAD    R1, M[R6]
+                INC     R6
+                
                 BR      .endif
+                
+                ; if not cactus
 .ground:        MVI     R3, '─'
                 STOR    M[R1], R3
                 
-.endif:         
+.endif:         INC     R4
 
-                INC     R4
-
-                CMP     R4, R5
+                CMP     R4, R5 ; loop until the end of the terrain
                 BR.N    .loop
                 
-                
+                ; POP R5, R4 & R7
                 LOAD    R5, M[R6]
                 INC     R6
                 LOAD    R4, M[R6]
                 INC     R6
                 LOAD    R7, M[R6]
+                INC     R6
                 JMP     R7
-                
 
+;=================================================================
+; Print cactus  function that prints a cactus at a specific column
+;               with a specific height
+;   R1 -> column
+;   R2 -> height
+;-----------------------------------------------------------------
+PRINT_CACTUS:   DEC     R6 ; PUSH R7, R4, R5
+                STOR    M[R6], R7
+                DEC     R6
+                STOR    M[R6], R4
+                DEC     R6
+                STOR    M[R6], R5
+                
+                ; get terminal cursor position
+                MVI     R5, TERM_TERRAIN
+                ADD     R5, R5, R1
+                
+.loop:          MVI     R4, 0100h
+                SUB     R5, R5, R4 ; go up one column
+                
+                MVI     R4, TERM_CURSOR
+                STOR    M[R4], R5
+                
+                ; write cactus
+                MVI     R4, TERM_WRITE
+                MVI     R3, '│'
+                STOR    M[R4], R3
+                
+                DEC     R2
+                CMP     R2, R0
+                BR.NZ   .loop ; repeat for cactus height
+                
+                ; POP R5, R4 & R7
+                LOAD    R5, M[R6]
+                INC     R6
+                LOAD    R4, M[R6]
+                INC     R6
+                LOAD    R7, M[R6]
+                INC     R6
+                JMP     R7
 
 ;*****************************************************************
 ; AUXILIARY INTERRUPT SERVICE ROUTINES
 ;*****************************************************************
 AUX_TIMER_ISR:  ; SAVE CONTEXT
                 DEC     R6
-                STOR    M[R6],R1
+                STOR    M[R6], R1
                 DEC     R6
-                STOR    M[R6],R2
+                STOR    M[R6], R2
                 ; RESTART TIMER
-                MVI     R2,TIMER_INTERVAL
-                MVI     R1,TIMER_COUNTER
-                STOR    M[R1],R2          ; set timer to count value
-                MVI     R1,TIMER_CONTROL
-                MVI     R2,TIMER_SETSTART
-                STOR    M[R1],R2          ; start timer
+                MVI     R2, TIMER_INTERVAL
+                MVI     R1, TIMER_COUNTER
+                STOR    M[R1], R2          ; set timer to count value
+                MVI     R1, TIMER_CONTROL
+                MVI     R2, TIMER_SETSTART
+                STOR    M[R1], R2          ; start timer
                 ; INC TIMER FLAG
-                MVI     R2,TIMER_TICK
-                LOAD    R1,M[R2]
+                MVI     R2, TIMER_TICK
+                LOAD    R1, M[R2]
                 INC     R1
-                STOR    M[R2],R1
+                STOR    M[R2], R1
                 ; RESTORE CONTEXT
-                LOAD    R2,M[R6]
+                LOAD    R2, M[R6]
                 INC     R6
-                LOAD    R1,M[R6]
+                LOAD    R1, M[R6]
                 INC     R6
                 JMP     R7
                 
@@ -269,10 +343,10 @@ AUX_TIMER_ISR:  ; SAVE CONTEXT
                 ORIG    7FF0h
 TIMER_ISR:      ; SAVE CONTEXT
                 DEC     R6
-                STOR    M[R6],R7
+                STOR    M[R6], R7
                 ; CALL AUXILIARY FUNCTION
                 JAL     AUX_TIMER_ISR
                 ; RESTORE CONTEXT
-                LOAD    R7,M[R6]
+                LOAD    R7, M[R6]
                 INC     R6
                 RTI
