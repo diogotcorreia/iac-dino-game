@@ -14,6 +14,13 @@ TERM_WRITE      EQU     FFFEh ; write characters
 TERM_STATUS     EQU     FFFDh ; status (0-no key pressed, 1-key pressed)
 TERM_CURSOR     EQU     FFFCh ; position the cursor
 TERM_COLOR      EQU     FFFBh ; change the colors
+; 7 segment display
+DISP7_D0        EQU     FFF0h
+DISP7_D1        EQU     FFF1h
+DISP7_D2        EQU     FFF2h
+DISP7_D3        EQU     FFF3h
+DISP7_D4        EQU     FFEEh
+DISP7_D5        EQU     FFEFh
 ; TIMER
 TIMER_CONTROL   EQU     FFF7h
 TIMER_COUNTER   EQU     FFF6h
@@ -35,6 +42,9 @@ TIMER_TICK      WORD    0      ; indicates the number of unattended
                 ORIG    4000h ; board
                 
 TERRAIN_START   TAB     TERRAIN_SIZE
+
+GAME_START      WORD    0
+SCORE           WORD    0
 
 ;=================================================================
 ; MAIN: the starting point of your program
@@ -61,13 +71,25 @@ TERRAIN_START   TAB     TERRAIN_SIZE
                 MVI     R2, TIMER_SETSTART
                 STOR    M[R1], R2          ; start timer
                 
-                ; WAIT FOR EVENT (TIMER/KEY)
-                ;MVI     R4,TERM_STATUS
+CheckStart:     ; WAIT FOR EVENT (TIMER/KEY)
                 MVI     R5, TIMER_TICK
+                MVI     R4, GAME_START
+.LOOP:          
+                LOAD    R1, M[R4] ; Starts the game if GAME_START
+                CMP     R1, R0    ; is 1
+                JAL.NZ  mainLoop
+                BR      .LOOP
+                
+;CheckStart:     ; RETURN IF GAME HASN'T STARTED
+;                MVI     R1, GAME_START
+;                LOAD    R1, M[R1]
+;                CMP     R1, R0
+;                JMP.Z   R7
                 
 mainLoop:       LOAD    R1, M[R5]
                 CMP     R1, R0
                 JAL.NZ  lifecycle
+                
                 
                 BR      mainLoop
 
@@ -92,6 +114,9 @@ lifecycle:      ; DEC TIMER_TICK
                 JAL     atualizajogo
                 
                 JAL     PRINT_TERRAIN
+                
+                JAL     PROCESS_TIMER_EVENT
+                
 
                 LOAD    R7, M[R6]
                 INC     R6
@@ -309,6 +334,65 @@ PRINT_CACTUS:   DEC     R6 ; PUSH R7, R4, R5
                 INC     R6
                 JMP     R7
 
+
+;=================================================================
+; PROCESS_TIMER_EVENT: Checks if the game has started and changes,
+; starting the timer and changing the score value, if it has, by 
+; one, every 0.3 seconds
+;-----------------------------------------------------------------
+PROCESS_TIMER_EVENT:
+                ; DEC TIMER_TICK
+                MVI     R2,TIMER_TICK
+                INC     R2
+                DSI     ; critical region: if an interruption occurs, value might become wrong
+                LOAD    R1,M[R2]
+                DEC     R1
+                STOR    M[R2],R1
+                ENI
+
+                ; UPDATE TIME
+                MVI     R1,SCORE
+                LOAD    R2,M[R1]
+                INC     R2
+                STOR    M[R1],R2
+                ; SHOW TIME ON DISP7_D0
+                MVI     R3,fh
+                AND     R3,R2,R3
+                MVI     R1,DISP7_D0
+                STOR    M[R1],R3
+                ; SHOW TIME ON DISP7_D1
+                SHR     R2
+                SHR     R2
+                SHR     R2
+                SHR     R2
+                MVI     R3,fh
+                AND     R3,R2,R3
+                MVI     R1,DISP7_D1
+                STOR    M[R1],R3
+                ; SHOW TIME ON DISP7_D2
+                SHR     R2
+                SHR     R2
+                SHR     R2
+                SHR     R2
+                MVI     R3,fh
+                AND     R3,R2,R3
+                MVI     R1,DISP7_D2
+                STOR    M[R1],R3
+                ; SHOW TIME ON DISP7_D3
+                SHR     R2
+                SHR     R2
+                SHR     R2
+                SHR     R2
+                MVI     R3,fh
+                AND     R3,R2,R3
+                MVI     R1,DISP7_D3
+                STOR    M[R1],R3
+                
+                JMP     R7
+
+
+
+
 ;*****************************************************************
 ; AUXILIARY INTERRUPT SERVICE ROUTINES
 ;*****************************************************************
@@ -348,5 +432,23 @@ TIMER_ISR:      ; SAVE CONTEXT
                 JAL     AUX_TIMER_ISR
                 ; RESTORE CONTEXT
                 LOAD    R7, M[R6]
+                INC     R6
+                RTI
+
+
+                ORIG    7F00h
+KEYZERO:        ; SAVE CONTEXT
+                DEC     R6
+                STOR    M[R6], R1
+                DEC     R6
+                STOR    M[R6], R2
+                ; START GAME
+                MVI     R1, GAME_START
+                MVI     R2, 1
+                STOR    M[R1], R2
+                ; RESTORE CONTEXT
+                LOAD    R2, M[R6]
+                INC     R6
+                LOAD    R1, M[R6]
                 INC     R6
                 RTI
