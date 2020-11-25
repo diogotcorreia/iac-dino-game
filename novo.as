@@ -7,7 +7,7 @@ TERRAIN_SIZE    EQU     80d   ; width of terminal
 STACK_ORIGIN    EQU     3000h
 RANDOM          EQU     b400h
 PROB            EQU     62258d
-CACTUS_HEIGHT   EQU     4h    ; maximum cactus heigh
+CACTUS_HEIGHT   EQU     4h    ; maximum cactus height
 ; TEXT WINDOW
 TERM_READ       EQU     FFFFh ; read characters
 TERM_WRITE      EQU     FFFEh ; write characters
