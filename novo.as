@@ -25,10 +25,10 @@ DISP7_D5        EQU     FFEFh
 TIMER_CONTROL   EQU     FFF7h
 TIMER_COUNTER   EQU     FFF6h
 TIMER_SETSTART  EQU     1
-TIMER_INTERVAL  EQU     3
+TIMER_INTERVAL  EQU     1
 ; INTERRUPTIONS
 INT_MASK        EQU     FFFAh
-INT_MASK_VAL    EQU     8000h ; 1000 0000 0000 0000 b
+INT_MASK_VAL    EQU     8001h ; 1000 0000 0000 0001 b
 
 ;=================================================================
 ; Program global variables
@@ -39,12 +39,12 @@ SEED            WORD    39263d ; this seed generates a 4 in the first try
 TIMER_TICK      WORD    0      ; indicates the number of unattended
                                ; timer interruptions
 
+GAME_START      WORD    0      ; 0 if game stopped, 1 if game on-going
+SCORE           WORD    0      ; player score
+
                 ORIG    4000h ; board
                 
 TERRAIN_START   TAB     TERRAIN_SIZE
-
-GAME_START      WORD    0
-SCORE           WORD    0
 
 ;=================================================================
 ; MAIN: the starting point of your program
@@ -61,42 +61,39 @@ SCORE           WORD    0
                 ; enable interruptions
                 ENI
                 
+CheckStart:     MVI     R4, GAME_START  ; hold off game start until
+                LOAD    R1, M[R4]       ; the zero key is pressed
+                CMP     R1, R0
+                BR.Z    CheckStart
+
                 ; START TIMER
                 MVI     R2, TIMER_INTERVAL
                 MVI     R1, TIMER_COUNTER
-                STOR    M[R1], R2          ; set timer to count 10x100ms
+                STOR    M[R1], R2          ; set timer to handle game lifecycle
                 MVI     R1, TIMER_TICK
                 STOR    M[R1], R0          ; clear all timer ticks
                 MVI     R1, TIMER_CONTROL
                 MVI     R2, TIMER_SETSTART
                 STOR    M[R1], R2          ; start timer
                 
-CheckStart:     ; WAIT FOR EVENT (TIMER/KEY)
+                ; WAIT FOR EVENT (TIMER/KEY)
                 MVI     R5, TIMER_TICK
-                MVI     R4, GAME_START
-.LOOP:          
-                LOAD    R1, M[R4] ; Starts the game if GAME_START
-                CMP     R1, R0    ; is 1
-                JAL.NZ  mainLoop
-                BR      .LOOP
-                
-;CheckStart:     ; RETURN IF GAME HASN'T STARTED
-;                MVI     R1, GAME_START
-;                LOAD    R1, M[R1]
-;                CMP     R1, R0
-;                JMP.Z   R7
                 
 mainLoop:       LOAD    R1, M[R5]
                 CMP     R1, R0
-                JAL.NZ  lifecycle
+                JAL.NZ  lifecycle ; if timer tick is pending, handle it
                 
                 
+                MVI     R4, GAME_START
+                LOAD    R1, M[R1]
+                CMP     R1, R0
+                BR.Z    CheckStart  ; stop game if game has ended
                 BR      mainLoop
 
 ;=================================================================
 ; lifecycle: function that handles every game tick (~0.3 sec)
 ;-----------------------------------------------------------------
-lifecycle:      ; DEC TIMER_TICK
+lifecycle:      ; decrement TIMER_TICK
                 MVI     R2, TIMER_TICK
                 DSI     ; critical region: if an interruption occurs,
                         ; value might become wrong
@@ -124,7 +121,7 @@ lifecycle:      ; DEC TIMER_TICK
                 JMP     R7
 
 ;=================================================================
-; lifecycle: shift the terrain to the left and add new cactus
+; atualizajogo: shift the terrain to the left and add new cactus
 ;-----------------------------------------------------------------
 atualizajogo:   DEC     R6         ; PUSH R4 & R5
                 STOR    M[R6], R4
@@ -341,14 +338,6 @@ PRINT_CACTUS:   DEC     R6 ; PUSH R7, R4, R5
 ; one, every 0.3 seconds
 ;-----------------------------------------------------------------
 PROCESS_TIMER_EVENT:
-                ; DEC TIMER_TICK
-                MVI     R2,TIMER_TICK
-                INC     R2
-                DSI     ; critical region: if an interruption occurs, value might become wrong
-                LOAD    R1,M[R2]
-                DEC     R1
-                STOR    M[R2],R1
-                ENI
 
                 ; UPDATE TIME
                 MVI     R1,SCORE
