@@ -8,6 +8,8 @@ STACK_ORIGIN    EQU     3000h
 RANDOM          EQU     b400h
 PROB            EQU     62258d
 CACTUS_HEIGHT   EQU     4h    ; maximum cactus height
+DINO_MAX_HEIGHT EQU     6h    ; jump height
+DINO_COLUMN     EQU     8h    ; dino offset from left
 ; TEXT WINDOW
 TERM_READ       EQU     FFFFh ; read characters
 TERM_WRITE      EQU     FFFEh ; write characters
@@ -41,6 +43,8 @@ TIMER_TICK      WORD    0      ; indicates the number of unattended
 
 GAME_START      WORD    0      ; 0 if game stopped, 1 if game on-going
 SCORE           WORD    0      ; player score
+
+DINO_HEIGHT     WORD    0      ; current height of the dino
 
                 ORIG    4000h ; board
                 
@@ -111,6 +115,10 @@ lifecycle:      ; decrement TIMER_TICK
                 JAL     atualizajogo
                 
                 JAL     PRINT_TERRAIN
+                
+                MVI     R1, DINO_HEIGHT
+                LOAD    R1, M[R1]
+                JAL     PRINT_DINO
                 
                 JAL     PROCESS_TIMER_EVENT
                 
@@ -330,6 +338,35 @@ PRINT_CACTUS:   DEC     R6 ; PUSH R7, R4, R5
                 LOAD    R7, M[R6]
                 INC     R6
                 JMP     R7
+                
+;=================================================================
+; PRINT_DINO:   function that prints the player at specific height
+;   R1 -> height
+;-----------------------------------------------------------------
+PRINT_DINO:     
+                MVI     R2, 8
+.columnLoop:    SHL     R1 ; make R1 a column by SHL 8 times
+                DEC     R2
+                BR.NZ   .columnLoop
+                NEG     R1 ; neg R1 so it decrements columns
+
+                MVI     R2, TERM_TERRAIN
+                ADD     R1, R1, R2 ; get terrain location
+                MVI     R2, 0100h
+                SUB     R1, R1, R2 ; go up one line
+                MVI     R2, DINO_COLUMN ; add horizontal offset
+                ADD     R1, R1, R2
+                
+                
+                MVI     R2, TERM_CURSOR
+                STOR    M[R2], R1  ; set cursor to dino position
+                
+                MVI     R2, TERM_WRITE
+                MVI     R1, 'ƒ'
+                STOR    M[R2], R1
+                
+                JMP     R7
+                
 
 
 ;=================================================================
