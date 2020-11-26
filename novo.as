@@ -131,27 +131,25 @@ lifecycle:      ; decrement TIMER_TICK
 ;=================================================================
 ; atualizajogo: shift the terrain to the left and add new cactus
 ;-----------------------------------------------------------------
-atualizajogo:   DEC     R6         ; PUSH R4 & R5
+atualizajogo:   DEC     R6         ; PUSH R4, R5 & R7
                 STOR    M[R6], R4
                 DEC     R6
                 STOR    M[R6], R5
+                DEC     R6
+                STOR    M[R6], R7
 
                 ADD     R4, R1, R2 ; R1 = 4000h R2 = 80
                 DEC     R4 ; last element (R4) = R1 + R2 - 1
                 
                 LOAD    R5, M[R4] ; R5 = last element value
                 
-                DEC     R6       ; PUSH R1 & R7
+                DEC     R6       ; PUSH R1
                 STOR    M[R6], R1
-                DEC     R6
-                STOR    M[R6], R7
                 
                 MVI     R1, CACTUS_HEIGHT
                 JAL     geracacto
                 
-                LOAD    R7, M[R6]  ; POP R7 & R1
-                INC     R6
-                LOAD    R1, M[R6]
+                LOAD    R1, M[R6] ; POP R1
                 INC     R6
                 
                 STOR    M[R4], R3  ; save value from geracacto
@@ -166,7 +164,9 @@ atualizajogo:   DEC     R6         ; PUSH R4 & R5
                 CMP     R4, R1
                 BR.P    .loop
                 
-                ; POP R5 & R4
+                ; POP R7, R5 & R4
+                LOAD    R7, M[R6]  
+                INC     R6
                 LOAD    R5, M[R6]
                 INC     R6
                 LOAD    R4, M[R6]
