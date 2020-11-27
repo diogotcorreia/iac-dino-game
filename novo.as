@@ -395,39 +395,69 @@ PROCESS_TIMER_EVENT:
                 LOAD    R2,M[R1]
                 INC     R2
                 STOR    M[R1],R2
+                                
                 ; SHOW TIME ON DISP7_D0
-                MVI     R3,fh
-                AND     R3,R2,R3
-                MVI     R1,DISP7_D0
-                STOR    M[R1],R3
+                JMP     HEX_DECIMAL
+                MVI     R2,DISP7_D0
+                STOR    M[R2],R3
                 ; SHOW TIME ON DISP7_D1
-                SHR     R2
-                SHR     R2
-                SHR     R2
-                SHR     R2
-                MVI     R3,fh
-                AND     R3,R2,R3
-                MVI     R1,DISP7_D1
-                STOR    M[R1],R3
+                JMP     HEX_DECIMAL
+                MVI     R2,DISP7_D1
+                STOR    M[R2],R3
                 ; SHOW TIME ON DISP7_D2
-                SHR     R2
-                SHR     R2
-                SHR     R2
-                SHR     R2
-                MVI     R3,fh
-                AND     R3,R2,R3
-                MVI     R1,DISP7_D2
-                STOR    M[R1],R3
+                JMP     HEX_DECIMAL
+                MVI     R2,DISP7_D2
+                STOR    M[R2],R3
                 ; SHOW TIME ON DISP7_D3
-                SHR     R2
-                SHR     R2
-                SHR     R2
-                SHR     R2
-                MVI     R3,fh
-                AND     R3,R2,R3
-                MVI     R1,DISP7_D3
-                STOR    M[R1],R3
+                JMP     HEX_DECIMAL
+                MVI     R2,DISP7_D3
+                STOR    M[R2],R3
                 
+                JMP     R7
+                
+                
+;=================================================================
+; HEX_DECIMAL: Takes a number in hexadecimal, returns remainder
+; of a division by ten and moves the quocient to the register
+; given as the argument
+;-----------------------------------------------------------------
+HEX_DECIMAL:    ;SAVE CONTEXT
+                DEC     R6
+                STOR    M[R6], R7
+                DEC     R6
+                STOR    M[R6], R5
+                DEC     R6
+                STOR    M[R6], R4
+                
+                MOV     R4, R0
+                
+                CMP     R1, R0
+                BR.Z    .exit
+                
+                MVI     R2, 10
+
+.loop:          INC     R4
+                SUB     R1, R1, R2
+                
+                CMP     R1, R0
+                BR.P    .loop
+                        
+                ADD     R3, R1, R2
+                
+                ; DECREMENT R4, TO ACCOUNT FOR THE EXTRA SUBTRACTION
+                ; USED TO END THE LOOP
+                DEC     R4
+                ; FEED NEW VALUE TO R1 FOR NEXT ITERATION
+                MOV     R1, R4
+.exit:                          
+                ;RESTORE CONTEXT
+                LOAD    R4, M[R6]
+                INC     R6
+                LOAD    R5, M[R6]
+                INC     R6
+                LOAD    R7, M[R6]
+                INC     R6
+
                 JMP     R7
 
 ;=================================================================
