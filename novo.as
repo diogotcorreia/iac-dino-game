@@ -10,6 +10,7 @@ PROB            EQU     62258d
 CACTUS_HEIGHT   EQU     4h    ; maximum cactus height
 DINO_MAX_HEIGHT EQU     6h    ; jump height
 DINO_COLUMN     EQU     8h    ; dino offset from left
+DINO_MAX_SPEED  EQU     1h    ; dino max absolute speed
 ; TEXT WINDOW
 TERM_READ       EQU     FFFFh ; read characters
 TERM_WRITE      EQU     FFFEh ; write characters
@@ -44,7 +45,8 @@ TIMER_TICK      WORD    0      ; indicates the number of unattended
 GAME_START      WORD    0      ; 0 if game stopped, 1 if game on-going
 SCORE           WORD    0      ; player score
 
-DINO_HEIGHT     WORD    0      ; current height of the dino
+DINO_HEIGHT     WORD    0       ; current height of the dino
+DINO_SPEED      WORD    0       ; current speed of the dino (0 = stopped)
 
                 ORIG    4000h ; board
                 
@@ -79,15 +81,25 @@ CheckStart:     MVI     R4, GAME_START  ; hold off game start until
                 MVI     R1, TIMER_CONTROL
                 MVI     R2, TIMER_SETSTART
                 STOR    M[R1], R2          ; start timer
+
+                ; Reset dino
+                MVI     R2, DINO_HEIGHT
+                STOR    M[R2], R0
+                MVI     R2, DINO_SPEED
+                STOR    M[R2], R0
                 
                 ; WAIT FOR EVENT (TIMER/KEY)
                 MVI     R5, TIMER_TICK
                 
-mainLoop:       LOAD    R1, M[R5]
+mainLoop:       MVI     R4,TERM_STATUS
+                LOAD    R1, M[R4]
+                CMP     R1, R0
+                JAL.NZ  handleTerminal
+
+                LOAD    R1, M[R5]
                 CMP     R1, R0
                 JAL.NZ  lifecycle ; if timer tick is pending, handle it
-                
-                
+
                 MVI     R4, GAME_START
                 LOAD    R1, M[R1]
                 CMP     R1, R0
@@ -95,7 +107,7 @@ mainLoop:       LOAD    R1, M[R5]
                 BR      mainLoop
 
 ;=================================================================
-; lifecycle: function that handles every game tick (~0.3 sec)
+; lifecycle: function that handles every game tick (~0.1 sec)
 ;-----------------------------------------------------------------
 lifecycle:      ; decrement TIMER_TICK
                 MVI     R2, TIMER_TICK
@@ -416,9 +428,25 @@ PROCESS_TIMER_EVENT:
                 
                 JMP     R7
 
+;=================================================================
+; handleTerminal: function that handles the UP arrow action
+;-----------------------------------------------------------------
+handleTerminal:
+                MVI     R1, TERM_READ
+                LOAD    R2, M[R1]
+                MVI     R1, 0018h       ; UP keyboard arrow
+                CMP     R2, R1
+                BR.NZ   .exit   ; exit if not keyboard arrow
 
+                MVI     R1, DINO_SPEED
+                LOAD    R2, M[R1]
+                CMP     R2, R0
+                BR.NZ   .exit   ; exit if not on ground
 
+                MVI     R2, DINO_MAX_SPEED
+                STOR    M[R1], R2
 
+.exit:          JMP R7
 ;*****************************************************************
 ; AUXILIARY INTERRUPT SERVICE ROUTINES
 ;*****************************************************************
