@@ -390,6 +390,10 @@ PRINT_DINO:
 ;-----------------------------------------------------------------
 PROCESS_TIMER_EVENT:
 
+                ; SAVE CONTEXT
+                DEC     R6
+                STOR    M[R6], R7
+
                 ; UPDATE TIME
                 MVI     R1,SCORE
                 LOAD    R2,M[R1]
@@ -397,21 +401,25 @@ PROCESS_TIMER_EVENT:
                 STOR    M[R1],R2
                                 
                 ; SHOW TIME ON DISP7_D0
-                JMP     HEX_DECIMAL
+                JAL     HEX_DECIMAL
                 MVI     R2,DISP7_D0
                 STOR    M[R2],R3
                 ; SHOW TIME ON DISP7_D1
-                JMP     HEX_DECIMAL
+                JAL     HEX_DECIMAL
                 MVI     R2,DISP7_D1
                 STOR    M[R2],R3
                 ; SHOW TIME ON DISP7_D2
-                JMP     HEX_DECIMAL
+                JAL     HEX_DECIMAL
                 MVI     R2,DISP7_D2
                 STOR    M[R2],R3
                 ; SHOW TIME ON DISP7_D3
-                JMP     HEX_DECIMAL
+                JAL     HEX_DECIMAL
                 MVI     R2,DISP7_D3
                 STOR    M[R2],R3
+                
+                ; SAVE CONTEXT
+                LOAD    R7, M[R6]
+                INC     R6
                 
                 JMP     R7
                 
@@ -431,8 +439,14 @@ HEX_DECIMAL:    ;SAVE CONTEXT
                 
                 MOV     R4, R0
                 
+                ; If the given argument is 0, exit function and return 0
                 CMP     R1, R0
-                BR.Z    .exit
+                BR.Z    .noDisplay
+                ; If argument is 10 (A in hexadecimal), return 0 and 
+                ; place the value 1 in R1
+                MVI     R5, 10
+                CMP     R1, R5
+                BR.Z    .scoreTen
                 
                 MVI     R2, 10
 
@@ -449,8 +463,16 @@ HEX_DECIMAL:    ;SAVE CONTEXT
                 DEC     R4
                 ; FEED NEW VALUE TO R1 FOR NEXT ITERATION
                 MOV     R1, R4
-.exit:                          
-                ;RESTORE CONTEXT
+                BR      .exit
+                
+.noDisplay:     MOV     R3, R0
+                BR      .exit
+
+.scoreTen:      MOV     R3, R0
+                MVI     R1, 1
+
+
+.exit:          ;RESTORE CONTEXT
                 LOAD    R4, M[R6]
                 INC     R6
                 LOAD    R5, M[R6]
