@@ -125,6 +125,8 @@ lifecycle:      ; decrement TIMER_TICK
                 MVI     R2, TERRAIN_SIZE ; terrain length
 
                 JAL     atualizajogo
+
+                JAL     GRAVITY_LC
                 
                 JAL     PRINT_TERRAIN
                 
@@ -427,6 +429,37 @@ PROCESS_TIMER_EVENT:
                 STOR    M[R1],R3
                 
                 JMP     R7
+
+;=================================================================
+; GRAVITY_LIFECYCLE: handle gravity logic every lifecycle tick
+;-----------------------------------------------------------------
+GRAVITY_LC:     MVI     R1, DINO_SPEED
+                LOAD    R1, M[R1]
+                CMP     R1, R0
+                BR.Z    .exit   ; skip if dino speed is zero
+
+                MVI     R2, DINO_HEIGHT
+                LOAD    R3, M[R2]
+
+                ADD     R3, R3, R1      ; add speed to height
+                STOR    M[R2], R3
+
+                ; if height is zero (ground), set speed to zero
+                CMP     R3, R0
+                BR.NZ   .notGround
+                MVI     R2, DINO_SPEED
+                STOR    M[R2], R0
+                BR      .exit
+
+.notGround:     ; else if height is max height, set speed to -speed
+                MVI     R2, DINO_MAX_HEIGHT
+                CMP     R3, R2
+                BR.NZ   .exit
+                MVI     R2, DINO_SPEED
+                NEG     R1
+                STOR    M[R2], R1
+
+.exit:          JMP R7
 
 ;=================================================================
 ; handleTerminal: function that handles the UP arrow action
