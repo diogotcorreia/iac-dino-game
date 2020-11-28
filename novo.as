@@ -330,7 +330,7 @@ PRINT_CACTUS:   DEC     R6 ; PUSH R7, R4, R5
                 ADD     R5, R5, R1
                 
 .loop:          MVI     R4, 0100h
-                SUB     R5, R5, R4 ; go up one column
+                SUB     R5, R5, R4 ; go up one line
                 
                 MVI     R4, TERM_CURSOR
                 STOR    M[R4], R5
