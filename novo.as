@@ -18,6 +18,17 @@ TERM_WRITE      EQU     FFFEh ; write characters
 TERM_STATUS     EQU     FFFDh ; status (0-no key pressed, 1-key pressed)
 TERM_CURSOR     EQU     FFFCh ; position the cursor
 TERM_COLOR      EQU     FFFBh ; change the colors
+; TERMINAL CUSTOMIZATION
+GROUND_CHAR     EQU     ' '
+GROUND_COLOR    EQU     4800h
+GROUND_LINES    EQU     14h
+CACTUS_CHAR     EQU     '╢'
+CACTUS_COLOR    EQU     0030h
+CACTUS_TOP_CHAR EQU     '╬'
+CACTUS_TOP_CLR  EQU     00e1h
+DINO_CHAR       EQU     'ƒ'
+DINO_COLOR      EQU     00ffh
+GAME_OVER_COLOR EQU     00ffh
 ; 7 segment display
 DISP7_D0        EQU     FFF0h
 DISP7_D1        EQU     FFF1h
@@ -259,13 +270,29 @@ PRINT_TERRAIN:  DEC     R6         ; PUSH R7, R4 & R5
                 STOR    M[R1], R2
                 MVI     R2, TERM_TERRAIN  ; position cursor at line 25
                 STOR    M[R1], R2
-                
+
+                MVI     R1, TERM_COLOR
+                MVI     R2, GROUND_COLOR
+                STOR    M[R1], R2
+
                 ; prepare loop variables
                 MVI     R1, TERM_WRITE
+                MVI     R4, GROUND_LINES
+
+                ; print just ground
+.terrainLoop:   MVI     R5, TERRAIN_SIZE
+
+.lineLoop:      MVI     R3, GROUND_CHAR
+                STOR    M[R1], R3
+                DEC     R5
+                BR.NZ   .lineLoop
+
+                DEC     R4
+                BR.NZ   .terrainLoop
+
+                ; print all cactus
                 MOV     R4, R0
                 MVI     R5, TERRAIN_SIZE
-                
-
 .loop:          ; load terrain value at R4
                 MVI     R3, TERRAIN_START
                 ADD     R3, R3, R4
@@ -274,38 +301,12 @@ PRINT_TERRAIN:  DEC     R6         ; PUSH R7, R4 & R5
                 CMP     R2, R0
                 BR.Z    .ground
                 ; if cactus
-                MVI     R3, '┴'
-                STOR    M[R1], R3
                 
-                ; PUSH R1 & R3
-                DEC     R6
-                STOR    M[R6], R1
-                DEC     R6
-                STOR    M[R6], R3
                 ; R1 - column index, R2 - cactus value
                 MOV     R1, R4
                 JAL     PRINT_CACTUS
                 
-                ; restore cursor location
-                MVI     R1, TERM_CURSOR
-                MVI     R2, TERM_TERRAIN
-                ADD     R2, R2, R4
-                INC     R2
-                STOR    M[R1], R2
-                
-                ; POP R1 & R3
-                LOAD    R3, M[R6]
-                INC     R6
-                LOAD    R1, M[R6]
-                INC     R6
-                
-                BR      .endif
-                
-                ; if not cactus
-.ground:        MVI     R3, '─'
-                STOR    M[R1], R3
-                
-.endif:         INC     R4
+.ground:        INC     R4
 
                 CMP     R4, R5 ; loop until the end of the terrain
                 BR.N    .loop
@@ -341,13 +342,28 @@ PRINT_CACTUS:   DEC     R6 ; PUSH R7, R4, R5
                 
                 MVI     R4, TERM_CURSOR
                 STOR    M[R4], R5
+
+                MVI     R4, TERM_COLOR
+
+                DEC     R2
+                BR.Z    .topCactus
+                ; if not top of cactus
+                MVI     R3, CACTUS_COLOR
+                STOR    M[R4], R3
+
+                MVI     R3, CACTUS_CHAR
+                BR      .write
                 
-                ; write cactus
+.topCactus:     ; if top of cactus
+                MVI     R3, CACTUS_TOP_CLR
+                STOR    M[R4], R3
+
+                MVI     R3, CACTUS_TOP_CHAR
+                
+.write:         ; write cactus
                 MVI     R4, TERM_WRITE
-                MVI     R3, '│'
                 STOR    M[R4], R3
                 
-                DEC     R2
                 CMP     R2, R0
                 BR.NZ   .loop ; repeat for cactus height
                 
@@ -381,9 +397,13 @@ PRINT_DINO:
                 
                 MVI     R2, TERM_CURSOR
                 STOR    M[R2], R1  ; set cursor to dino position
+
+                MVI     R2, TERM_COLOR
+                MVI     R1, DINO_COLOR
+                STOR    M[R2], R1
                 
                 MVI     R2, TERM_WRITE
-                MVI     R1, 'ƒ'
+                MVI     R1, DINO_CHAR
                 STOR    M[R2], R1
                 
                 JMP     R7
@@ -563,6 +583,10 @@ GAME_OVER:      MVI     R1, GAME_START
                 STOR    M[R1], R0
 
                 ; write game over
+                MVI     R1, TERM_COLOR
+                MVI     R2, GAME_OVER_COLOR
+                STOR    M[R1], R2
+
                 MVI     R1, TERM_CURSOR
                 MVI     R2, GAME_OVER_POS
                 STOR    M[R1], R2
