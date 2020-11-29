@@ -400,6 +400,8 @@ PROCESS_TIMER_EVENT:
                 INC     R2
                 STOR    M[R1],R2
                                 
+                MOV     R1, R2
+                                
                 ; SHOW TIME ON DISP7_D0
                 JAL     HEX_DECIMAL
                 MVI     R2,DISP7_D0
