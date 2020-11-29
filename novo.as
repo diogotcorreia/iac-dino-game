@@ -43,7 +43,7 @@ TIMER_SETSTART  EQU     1
 TIMER_INTERVAL  EQU     1
 ; INTERRUPTIONS
 INT_MASK        EQU     FFFAh
-INT_MASK_VAL    EQU     8001h ; 1000 0000 0000 0001 b
+INT_MASK_VAL    EQU     8009h ; 1000 0000 0000 1001 b
 
 ;=================================================================
 ; Program global variables
@@ -612,12 +612,6 @@ GAME_OVER:      MVI     R1, GAME_START
 ; handleTerminal: function that handles the UP arrow action
 ;-----------------------------------------------------------------
 handleTerminal:
-                MVI     R1, TERM_READ
-                LOAD    R2, M[R1]
-                MVI     R1, 0018h       ; UP keyboard arrow
-                CMP     R2, R1
-                BR.NZ   .exit   ; exit if not keyboard arrow
-
                 MVI     R1, DINO_SPEED
                 LOAD    R2, M[R1]
                 CMP     R2, R0
@@ -684,5 +678,20 @@ KEYZERO:        ; SAVE CONTEXT
                 LOAD    R2, M[R6]
                 INC     R6
                 LOAD    R1, M[R6]
+                INC     R6
+                RTI
+                
+                ORIG    7F30h
+KEYUP:          ; SAVE CONTEXT
+                DEC     R6
+                STOR    M[R6],R1
+                DEC     R6
+                STOR    M[R6],R7
+                ; CALL AUXILIARY FUNCTION
+                JAL     handleTerminal
+                ; RESTORE CONTEXT
+                LOAD    R7,M[R6]
+                INC     R6
+                LOAD    R1,M[R6]
                 INC     R6
                 RTI
