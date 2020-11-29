@@ -101,7 +101,7 @@ mainLoop:       MVI     R4,TERM_STATUS
                 JAL.NZ  lifecycle ; if timer tick is pending, handle it
 
                 MVI     R4, GAME_START
-                LOAD    R1, M[R1]
+                LOAD    R1, M[R4]
                 CMP     R1, R0
                 BR.Z    CheckStart  ; stop game if game has ended
                 BR      mainLoop
