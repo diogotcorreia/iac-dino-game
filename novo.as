@@ -11,6 +11,7 @@ CACTUS_HEIGHT   EQU     4h    ; maximum cactus height
 DINO_MAX_HEIGHT EQU     6h    ; jump height
 DINO_COLUMN     EQU     8h    ; dino offset from left
 DINO_MAX_SPEED  EQU     1h    ; dino max absolute speed
+GAME_OVER_POS   EQU     0623h ; position to write 'game over'
 ; TEXT WINDOW
 TERM_READ       EQU     FFFFh ; read characters
 TERM_WRITE      EQU     FFFEh ; write characters
@@ -47,6 +48,7 @@ SCORE           WORD    0      ; player score
 
 DINO_HEIGHT     WORD    0       ; current height of the dino
 DINO_SPEED      WORD    0       ; current speed of the dino (0 = stopped)
+GAME_OVER_MSG   STR     'GAME  OVER', 0
 
                 ORIG    4000h ; board
                 
@@ -136,7 +138,12 @@ lifecycle:      ; decrement TIMER_TICK
                 
                 JAL     PROCESS_TIMER_EVENT
                 
+                JAL     CHECK_COLISIONS
+                CMP     R3, R0
+                BR.Z    .notGameOver
+                JAL     GAME_OVER
 
+.notGameOver:
                 LOAD    R7, M[R6]
                 INC     R6
                 
@@ -514,6 +521,62 @@ GRAVITY_LC:     MVI     R1, DINO_SPEED
                 STOR    M[R2], R1
 
 .exit:          JMP R7
+
+;=================================================================
+; CHECK_COLISIONS: function that checks if the dino collided
+;   If so, it returns 1 on R3, otherwise returns 0 on R3.
+;-----------------------------------------------------------------
+CHECK_COLISIONS:
+                MVI     R1, TERRAIN_START
+                MVI     R2, DINO_COLUMN
+                ADD     R1, R1, R2 ; get column where dino is
+                LOAD    R2, M[R1]  ; get height of cactus in that column
+
+                MVI     R1, DINO_HEIGHT
+                LOAD    R1, M[R1]  ; get current dino height
+                
+                MOV     R3, R0 ; make sure the return value is empty
+                
+                CMP     R1, R2
+                BR.NN   .exit
+                MVI     R3, 1h ; if R1 (zero based) < R2, return game over
+
+.exit:          JMP R7
+
+;=================================================================
+; GAME_OVER: function that ends the game, and prints 'Game Over'
+;   in the terminal.
+;-----------------------------------------------------------------
+GAME_OVER:      MVI     R1, GAME_START
+                STOR    M[R1], R0       ; stop game
+
+                ; clear terrain
+                MVI     R1, TERRAIN_START
+                MVI     R2, TERRAIN_SIZE
+.terrainLoop:   STOR    M[R1], R0
+                INC     R1
+                DEC     R2
+                BR.NZ   .terrainLoop
+
+                ; reset score
+                MVI     R1, SCORE
+                STOR    M[R1], R0
+
+                ; write game over
+                MVI     R1, TERM_CURSOR
+                MVI     R2, GAME_OVER_POS
+                STOR    M[R1], R2
+
+                MVI     R3, TERM_WRITE
+                MVI     R1, GAME_OVER_MSG
+                LOAD    R2, M[R1]
+.termLoop:      STOR    M[R3], R2
+                INC R1
+                LOAD    R2, M[R1]
+                CMP     R2, R0
+                BR.NZ   .termLoop
+
+                JMP     R7
 
 ;=================================================================
 ; handleTerminal: function that handles the UP arrow action
