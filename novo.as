@@ -484,6 +484,9 @@ HEX_DECIMAL:    ;SAVE CONTEXT
                 
                 CMP     R1, R0
                 BR.P    .loop
+                
+                CMP     R1, R0  ; if the argument was a multiple of 10     
+                BR.Z    .multipleOfTen
                         
                 ADD     R3, R1, R2
                 
@@ -499,7 +502,10 @@ HEX_DECIMAL:    ;SAVE CONTEXT
 
 .scoreTen:      MOV     R3, R0
                 MVI     R1, 1
-
+                BR      .exit
+                
+.multipleOfTen: MOV     R3, R0  ; return remainder as 0
+                MOV     R1, R4  ; return quocient as the number of subtractions
 
 .exit:          ;RESTORE CONTEXT
                 LOAD    R4, M[R6]
