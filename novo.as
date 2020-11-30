@@ -13,9 +13,7 @@ DINO_COLUMN     EQU     8h    ; dino offset from left
 DINO_MAX_SPEED  EQU     1h    ; dino max absolute speed
 GAME_OVER_POS   EQU     0623h ; position to write 'game over'
 ; TEXT WINDOW
-TERM_READ       EQU     FFFFh ; read characters
 TERM_WRITE      EQU     FFFEh ; write characters
-TERM_STATUS     EQU     FFFDh ; status (0-no key pressed, 1-key pressed)
 TERM_CURSOR     EQU     FFFCh ; position the cursor
 TERM_COLOR      EQU     FFFBh ; change the colors
 ; TERMINAL CUSTOMIZATION
@@ -102,18 +100,13 @@ CheckStart:     MVI     R4, GAME_START  ; hold off game start until
                 STOR    M[R2], R0
                 
                 ; WAIT FOR EVENT (TIMER/KEY)
+                MVI     R4, GAME_START
                 MVI     R5, TIMER_TICK
                 
-mainLoop:       MVI     R4,TERM_STATUS
-                LOAD    R1, M[R4]
-                CMP     R1, R0
-                JAL.NZ  handleTerminal
-
-                LOAD    R1, M[R5]
+mainLoop:       LOAD    R1, M[R5]
                 CMP     R1, R0
                 JAL.NZ  lifecycle ; if timer tick is pending, handle it
 
-                MVI     R4, GAME_START
                 LOAD    R1, M[R4]
                 CMP     R1, R0
                 BR.Z    CheckStart  ; stop game if game has ended
@@ -608,19 +601,6 @@ GAME_OVER:      MVI     R1, GAME_START
 
                 JMP     R7
 
-;=================================================================
-; handleTerminal: function that handles the UP arrow action
-;-----------------------------------------------------------------
-handleTerminal:
-                MVI     R1, DINO_SPEED
-                LOAD    R2, M[R1]
-                CMP     R2, R0
-                BR.NZ   .exit   ; exit if not on ground
-
-                MVI     R2, DINO_MAX_SPEED
-                STOR    M[R1], R2
-
-.exit:          JMP R7
 ;*****************************************************************
 ; AUXILIARY INTERRUPT SERVICE ROUTINES
 ;*****************************************************************
@@ -648,6 +628,19 @@ AUX_TIMER_ISR:  ; SAVE CONTEXT
                 INC     R6
                 JMP     R7
                 
+;=================================================================
+; AUX_KEYUP_ISR: function that handles the UP arrow action
+;-----------------------------------------------------------------
+AUX_KEYUP_ISR:
+                MVI     R1, DINO_SPEED
+                LOAD    R2, M[R1]
+                CMP     R2, R0
+                BR.NZ   .exit   ; exit if not on ground
+
+                MVI     R2, DINO_MAX_SPEED
+                STOR    M[R1], R2
+
+.exit:          JMP R7
 
 ;*****************************************************************
 ; INTERRUPT SERVICE ROUTINES
@@ -686,11 +679,15 @@ KEYUP:          ; SAVE CONTEXT
                 DEC     R6
                 STOR    M[R6],R1
                 DEC     R6
+                STOR    M[R6], R2
+                DEC     R6
                 STOR    M[R6],R7
                 ; CALL AUXILIARY FUNCTION
-                JAL     handleTerminal
+                JAL     AUX_KEYUP_ISR
                 ; RESTORE CONTEXT
                 LOAD    R7,M[R6]
+                INC     R6
+                LOAD    R2, M[R6]
                 INC     R6
                 LOAD    R1,M[R6]
                 INC     R6
