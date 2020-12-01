@@ -439,6 +439,17 @@ PROCESS_TIMER_EVENT:
                 MVI     R2,DISP7_D3
                 STOR    M[R2],R3
                 
+                ; SHOW TIME ON DISP7_D4
+                JAL     HEX_DECIMAL
+                MVI     R2,DISP7_D4
+                STOR    M[R2],R3
+                
+                ; SHOW TIME ON DISP7_D5
+                JAL     HEX_DECIMAL
+                MVI     R2,DISP7_D5
+                STOR    M[R2],R3
+                
+                
                 ; SAVE CONTEXT
                 LOAD    R7, M[R6]
                 INC     R6
