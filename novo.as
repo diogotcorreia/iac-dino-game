@@ -142,7 +142,7 @@ lifecycle:      ; decrement TIMER_TICK
                 
                 JAL     PROCESS_TIMER_EVENT
                 
-                JAL     CHECK_COLISIONS
+                JAL     CHECK_COLLISIONS
                 CMP     R3, R0
                 BR.Z    .notGameOver
                 JAL     GAME_OVER
@@ -542,10 +542,10 @@ GRAVITY_LC:     MVI     R1, DINO_SPEED
 .exit:          JMP R7
 
 ;=================================================================
-; CHECK_COLISIONS: function that checks if the dino collided
+; CHECK_COLLISIONS: function that checks if the dino collided
 ;   If so, it returns 1 on R3, otherwise returns 0 on R3.
 ;-----------------------------------------------------------------
-CHECK_COLISIONS:
+CHECK_COLLISIONS:
                 MVI     R1, TERRAIN_START
                 MVI     R2, DINO_COLUMN
                 ADD     R1, R1, R2 ; get column where dino is
