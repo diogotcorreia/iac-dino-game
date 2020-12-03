@@ -446,7 +446,10 @@ INCREMENT_SCORE:
                 JAL     HEX_DECIMAL
                 LOAD    R2, M[R4]
                 STOR    M[R2], R3
-
+                
+                LOAD    R1, M[R6] ; pop the second returned value from the stack
+                INC     R6        ; to use as the argument on the next iteration
+                
                 INC     R4
                 DEC     R5
                 BR.NZ   .dispLoop
@@ -523,6 +526,10 @@ HEX_DECIMAL:    ;SAVE CONTEXT
                 INC     R6
                 LOAD    R7, M[R6]
                 INC     R6
+                
+                ;SAVE SECOND RETURN VALUE
+                DEC     R6          ; store quocient on stack
+                STOR    M[R6], R1   ; as R3 already returns another value
 
                 JMP     R7
 
