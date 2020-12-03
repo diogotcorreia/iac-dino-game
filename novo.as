@@ -61,6 +61,9 @@ DINO_HEIGHT     WORD    0       ; current height of the dino
 DINO_SPEED      WORD    0       ; current speed of the dino (0 = stopped)
 GAME_OVER_MSG   STR     'GAME  OVER', 0
 
+SCORE_DISP      STR     DISP7_D0, DISP7_D1, DISP7_D2, DISP7_D3, DISP7_D4, DISP7_D5
+SCORE_DISP_NUM  WORD    6
+
                 ORIG    4000h ; board
                 
 TERRAIN_START   TAB     TERRAIN_SIZE
@@ -252,7 +255,6 @@ geracacto:      ; PUSH R4 & R5
 ;=================================================================
 ; Print Terrain: Clear the terminal and print the terrain with cactus
 ;-----------------------------------------------------------------
-                  
 PRINT_TERRAIN:  DEC     R6         ; PUSH R7, R4 & R5
                 STOR    M[R6], R7
                 DEC     R6
@@ -422,46 +424,39 @@ INCREMENT_SCORE:
 
                 ; SAVE CONTEXT
                 DEC     R6
+                STOR    M[R6], R4
+                DEC     R6
+                STOR    M[R6], R5
+                DEC     R6
                 STOR    M[R6], R7
 
                 ; UPDATE TIME
-                MVI     R1,SCORE
-                LOAD    R2,M[R1]
+                MVI     R1, SCORE
+                LOAD    R2, M[R1]
                 INC     R2
-                STOR    M[R1],R2
+                STOR    M[R1], R2
                                 
                 MOV     R1, R2
-                                
-                ; SHOW TIME ON DISP7_D0
+
+                ; prepare loop variables
+                MVI     R4, SCORE_DISP
+                MVI     R5, SCORE_DISP_NUM
+.dispLoop:
+                ; SHOW TIME ON DISP7_DX
                 JAL     HEX_DECIMAL
-                MVI     R2,DISP7_D0
-                STOR    M[R2],R3
-                ; SHOW TIME ON DISP7_D1
-                JAL     HEX_DECIMAL
-                MVI     R2,DISP7_D1
-                STOR    M[R2],R3
-                ; SHOW TIME ON DISP7_D2
-                JAL     HEX_DECIMAL
-                MVI     R2,DISP7_D2
-                STOR    M[R2],R3
-                ; SHOW TIME ON DISP7_D3
-                JAL     HEX_DECIMAL
-                MVI     R2,DISP7_D3
-                STOR    M[R2],R3
+                LOAD    R2, M[R4]
+                STOR    M[R2], R3
+
+                INC     R4
+                DEC     R5
+                BR.NZ   .dispLoop
                 
-                ; SHOW TIME ON DISP7_D4
-                JAL     HEX_DECIMAL
-                MVI     R2,DISP7_D4
-                STOR    M[R2],R3
-                
-                ; SHOW TIME ON DISP7_D5
-                JAL     HEX_DECIMAL
-                MVI     R2,DISP7_D5
-                STOR    M[R2],R3
-                
-                
-                ; SAVE CONTEXT
+                ; RESTORE CONTEXT
                 LOAD    R7, M[R6]
+                INC     R6
+                LOAD    R5, M[R6]
+                INC     R6
+                LOAD    R4, M[R6]
                 INC     R6
                 
                 JMP     R7
