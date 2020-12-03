@@ -140,7 +140,7 @@ lifecycle:      ; decrement TIMER_TICK
                 LOAD    R1, M[R1]
                 JAL     PRINT_DINO
                 
-                JAL     PROCESS_TIMER_EVENT
+                JAL     INCREMENT_SCORE
                 
                 JAL     CHECK_COLLISIONS
                 CMP     R3, R0
@@ -404,11 +404,10 @@ PRINT_DINO:
 
 
 ;=================================================================
-; PROCESS_TIMER_EVENT: Checks if the game has started and changes,
-; starting the timer and changing the score value, if it has, by 
-; one, every 0.3 seconds
+; INCREMENT_SCORE: Increments the score by one and updates
+;                  the 7-segment display with the new score
 ;-----------------------------------------------------------------
-PROCESS_TIMER_EVENT:
+INCREMENT_SCORE:
 
                 ; SAVE CONTEXT
                 DEC     R6
