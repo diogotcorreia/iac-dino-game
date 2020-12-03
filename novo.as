@@ -62,7 +62,7 @@ DINO_SPEED      WORD    0       ; current speed of the dino (0 = stopped)
 GAME_OVER_MSG   STR     'GAME  OVER', 0
 
 SCORE_DISP      STR     DISP7_D0, DISP7_D1, DISP7_D2, DISP7_D3, DISP7_D4, DISP7_D5
-SCORE_DISP_NUM  WORD    6
+SCORE_DISP_NUM  EQU     6
 
                 ORIG    4000h ; board
                 
