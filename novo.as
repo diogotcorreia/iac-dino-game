@@ -16,17 +16,19 @@ GAME_OVER_POS   EQU     0623h ; position to write 'game over'
 TERM_WRITE      EQU     FFFEh ; write characters
 TERM_CURSOR     EQU     FFFCh ; position the cursor
 TERM_COLOR      EQU     FFFBh ; change the colors
+TERM_HEIGHT     EQU     2Dh
 ; TERMINAL CUSTOMIZATION
+SKY_COLOR       EQU     1bffh
 GROUND_CHAR     EQU     ' '
-GROUND_COLOR    EQU     4800h
-GROUND_LINES    EQU     14h
+GROUND_COLOR    EQU     daffh
+GROUND_LINES    EQU     15h
 CACTUS_CHAR     EQU     '╢'
-CACTUS_COLOR    EQU     0030h
+CACTUS_COLOR    EQU     1b30h
 CACTUS_TOP_CHAR EQU     '╬'
-CACTUS_TOP_CLR  EQU     00e1h
+CACTUS_TOP_CLR  EQU     1be1h
 DINO_CHAR       EQU     'ƒ'
-DINO_COLOR      EQU     00ffh
-GAME_OVER_COLOR EQU     00ffh
+DINO_COLOR      EQU     1b00h
+GAME_OVER_COLOR EQU     1b00h
 ; 7 segment display
 DISP7_D0        EQU     FFF0h
 DISP7_D1        EQU     FFF1h
@@ -261,26 +263,35 @@ PRINT_TERRAIN:  DEC     R6         ; PUSH R7, R4 & R5
                 MVI     R1, TERM_CURSOR
                 MVI     R2, FFFFh ; clear terminal
                 STOR    M[R1], R2
-                MVI     R2, TERM_TERRAIN  ; position cursor at line 25
-                STOR    M[R1], R2
+                STOR    M[R1], R0
 
                 MVI     R1, TERM_COLOR
-                MVI     R2, GROUND_COLOR
+                MVI     R2, SKY_COLOR
                 STOR    M[R1], R2
 
                 ; prepare loop variables
                 MVI     R1, TERM_WRITE
-                MVI     R4, GROUND_LINES
+                MVI     R2, GROUND_LINES ; know when to change colors
+                MVI     R3, GROUND_CHAR
+                MVI     R4, TERM_HEIGHT
 
-                ; print just ground
+                ; print sky and ground
 .terrainLoop:   MVI     R5, TERRAIN_SIZE
 
-.lineLoop:      MVI     R3, GROUND_CHAR
-                STOR    M[R1], R3
+.lineLoop:      STOR    M[R1], R3
                 DEC     R5
                 BR.NZ   .lineLoop
 
-                DEC     R4
+                CMP     R4, R2
+                BR.NZ   .loopEnd
+                MVI     R1, TERM_COLOR
+                MVI     R3, GROUND_COLOR
+                STOR    M[R1], R3
+                ; restore R1 & R3
+                MVI     R1, TERM_WRITE
+                MVI     R3, GROUND_CHAR
+
+.loopEnd:       DEC     R4
                 BR.NZ   .terrainLoop
 
                 ; print all cactus
