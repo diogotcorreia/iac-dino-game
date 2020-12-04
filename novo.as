@@ -16,12 +16,14 @@ GAME_OVER_POS   EQU     0623h ; position to write 'game over'
 TERM_WRITE      EQU     FFFEh ; write characters
 TERM_CURSOR     EQU     FFFCh ; position the cursor
 TERM_COLOR      EQU     FFFBh ; change the colors
+TERM_DRAW_START EQU     1200h ; position at which to paint every lifecycle
+TERM_COUNT_LC   EQU     0230h    ; characters to paint at every lifecycle
 TERM_HEIGHT     EQU     2Dh
 ; TERMINAL CUSTOMIZATION
 SKY_COLOR       EQU     1bffh
-GROUND_CHAR     EQU     ' '
+GROUND_CHAR     EQU     ' ' ; ground and sky character
 GROUND_COLOR    EQU     daffh
-GROUND_LINES    EQU     15h
+GROUND_LINES    EQU     15h ; count of ground lines + 1
 CACTUS_CHAR     EQU     '╢'
 CACTUS_COLOR    EQU     1b30h
 CACTUS_TOP_CHAR EQU     '╬'
@@ -40,6 +42,7 @@ DISP7_D5        EQU     FFEFh
 TIMER_CONTROL   EQU     FFF7h
 TIMER_COUNTER   EQU     FFF6h
 TIMER_SETSTART  EQU     1
+TIMER_SETSTOP   EQU     0
 TIMER_INTERVAL  EQU     1
 ; INTERRUPTIONS
 INT_MASK        EQU     FFFAh
@@ -97,6 +100,9 @@ CheckStart:     MVI     R4, GAME_START  ; hold off game start until
                 MVI     R1, TIMER_CONTROL
                 MVI     R2, TIMER_SETSTART
                 STOR    M[R1], R2          ; start timer
+
+                ; Paint background
+                JAL     PRINT_TERRAIN_STATIC
 
                 ; Reset dino
                 MVI     R2, DINO_HEIGHT
@@ -253,7 +259,7 @@ geracacto:      ; PUSH R4 & R5
                 JMP     R7 
 
 ;=================================================================
-; Print Terrain: Clear the terminal and print the terrain with cactus
+; Print Terrain: Print the background on the dynamic area and all cactus
 ;-----------------------------------------------------------------
 PRINT_TERRAIN:  DEC     R6         ; PUSH R7, R4 & R5
                 STOR    M[R6], R7
@@ -263,9 +269,67 @@ PRINT_TERRAIN:  DEC     R6         ; PUSH R7, R4 & R5
                 STOR    M[R6], R5
                 
                 MVI     R1, TERM_CURSOR
+                MVI     R2, TERM_DRAW_START ; move to drawing position
+                STOR    M[R1], R2
+
+                MVI     R1, TERM_COLOR
+                MVI     R2, SKY_COLOR
+                STOR    M[R1], R2
+
+                ; prepare loop variables
+                MVI     R1, TERM_WRITE
+                MVI     R2, TERM_COUNT_LC
+                MVI     R3, GROUND_CHAR
+
+                ; print sky on dynamic area
+.terrainLoop:   STOR    M[R1], R3
+                DEC     R2
+                BR.NZ   .terrainLoop
+
+                ; print all cactus
+                MOV     R4, R0
+                MVI     R5, TERRAIN_SIZE
+.loop:          ; load terrain value at R4
+                MVI     R3, TERRAIN_START
+                ADD     R3, R3, R4
+                LOAD    R2, M[R3]
+                
+                CMP     R2, R0
+                BR.Z    .ground
+                ; if cactus
+                
+                ; R1 - column index, R2 - cactus value
+                MOV     R1, R4
+                JAL     PRINT_CACTUS
+                
+.ground:        INC     R4
+
+                CMP     R4, R5 ; loop until the end of the terrain
+                BR.N    .loop
+                
+                ; POP R5, R4 & R7
+                LOAD    R5, M[R6]
+                INC     R6
+                LOAD    R4, M[R6]
+                INC     R6
+                LOAD    R7, M[R6]
+                INC     R6
+                JMP     R7
+
+;=================================================================
+; Print Terrain Static: Clear the terminal and paint the background
+;                       for the game.
+;-----------------------------------------------------------------
+PRINT_TERRAIN_STATIC:
+                DEC     R6
+                STOR    M[R6], R4  ; PUSH R4 & R5
+                DEC     R6
+                STOR    M[R6], R5
+                
+                MVI     R1, TERM_CURSOR
                 MVI     R2, FFFFh ; clear terminal
                 STOR    M[R1], R2
-                STOR    M[R1], R0
+                STOR    M[R1], R0 ; move to first position
 
                 MVI     R1, TERM_COLOR
                 MVI     R2, SKY_COLOR
@@ -296,33 +360,10 @@ PRINT_TERRAIN:  DEC     R6         ; PUSH R7, R4 & R5
 .loopEnd:       DEC     R4
                 BR.NZ   .terrainLoop
 
-                ; print all cactus
-                MOV     R4, R0
-                MVI     R5, TERRAIN_SIZE
-.loop:          ; load terrain value at R4
-                MVI     R3, TERRAIN_START
-                ADD     R3, R3, R4
-                LOAD    R2, M[R3]
-                
-                CMP     R2, R0
-                BR.Z    .ground
-                ; if cactus
-                
-                ; R1 - column index, R2 - cactus value
-                MOV     R1, R4
-                JAL     PRINT_CACTUS
-                
-.ground:        INC     R4
-
-                CMP     R4, R5 ; loop until the end of the terrain
-                BR.N    .loop
-                
-                ; POP R5, R4 & R7
+                ; POP R5, R4
                 LOAD    R5, M[R6]
                 INC     R6
                 LOAD    R4, M[R6]
-                INC     R6
-                LOAD    R7, M[R6]
                 INC     R6
                 JMP     R7
 
@@ -591,6 +632,11 @@ CHECK_COLLISIONS:
 ;-----------------------------------------------------------------
 GAME_OVER:      MVI     R1, GAME_START
                 STOR    M[R1], R0       ; stop game
+
+                ; stop timer
+                MVI     R1, TIMER_CONTROL
+                MVI     R2, TIMER_SETSTOP
+                STOR    M[R1], R2
 
                 ; clear terrain
                 MVI     R1, TERRAIN_START
