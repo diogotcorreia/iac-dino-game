@@ -5,8 +5,8 @@
 TERM_TERRAIN    EQU     1900h ; line 25, column 0
 TERRAIN_SIZE    EQU     80d   ; width of terminal
 STACK_ORIGIN    EQU     3000h
-RANDOM          EQU     b400h
-PROB            EQU     62258d
+RANDOM          EQU     b400h ; value used in geracacto
+PROB            EQU     62258d ; probability used in geracacto
 CACTUS_HEIGHT   EQU     4h    ; maximum cactus height
 DINO_MAX_HEIGHT EQU     6h    ; jump height
 DINO_COLUMN     EQU     8h    ; dino offset from left
@@ -17,20 +17,20 @@ TERM_WRITE      EQU     FFFEh ; write characters
 TERM_CURSOR     EQU     FFFCh ; position the cursor
 TERM_COLOR      EQU     FFFBh ; change the colors
 TERM_DRAW_START EQU     1200h ; position at which to paint every lifecycle
-TERM_COUNT_LC   EQU     0230h    ; characters to paint at every lifecycle
-TERM_HEIGHT     EQU     2Dh
+TERM_COUNT_LC   EQU     0230h ; number of characters to paint at every lifecycle
+TERM_HEIGHT     EQU     2Dh   ; total number of lines in the terminal
 ; TERMINAL CUSTOMIZATION
-SKY_COLOR       EQU     1bffh
+SKY_COLOR       EQU     1bffh ; color to paint the sky
 GROUND_CHAR     EQU     ' ' ; ground and sky character
-GROUND_COLOR    EQU     daffh
+GROUND_COLOR    EQU     daffh ; color to paint the ground
 GROUND_LINES    EQU     15h ; count of ground lines + 1
 CACTUS_CHAR     EQU     '╢'
 CACTUS_COLOR    EQU     1b30h
-CACTUS_TOP_CHAR EQU     '╬'
-CACTUS_TOP_CLR  EQU     1be1h
+CACTUS_TOP_CHAR EQU     '╬'   ; character of the top of the cactus
+CACTUS_TOP_CLR  EQU     1be1h ; color of the top character of the cactus
 DINO_CHAR       EQU     'ƒ'
 DINO_COLOR      EQU     1b00h
-GAME_OVER_COLOR EQU     1b00h
+GAME_OVER_COLOR EQU     1b00h ; game over text color
 ; 7 segment display
 DISP7_D0        EQU     FFF0h
 DISP7_D1        EQU     FFF1h
@@ -38,12 +38,14 @@ DISP7_D2        EQU     FFF2h
 DISP7_D3        EQU     FFF3h
 DISP7_D4        EQU     FFEEh
 DISP7_D5        EQU     FFEFh
+SCORE_DISP_NUM  EQU     6    ; number of 7 segment displays
+DECIMAL_BASE    EQU     10d
 ; TIMER
-TIMER_CONTROL   EQU     FFF7h
-TIMER_COUNTER   EQU     FFF6h
+TIMER_CONTROL   EQU     FFF7h ; enable or disable timer
+TIMER_COUNTER   EQU     FFF6h ; set timer delay
 TIMER_SETSTART  EQU     1
 TIMER_SETSTOP   EQU     0
-TIMER_INTERVAL  EQU     1
+TIMER_INTERVAL  EQU     1 ; game lifecycle delay = 100ms
 ; INTERRUPTIONS
 INT_MASK        EQU     FFFAh
 INT_MASK_VAL    EQU     8009h ; 1000 0000 0000 1001 b
@@ -64,8 +66,8 @@ DINO_HEIGHT     WORD    0       ; current height of the dino
 DINO_SPEED      WORD    0       ; current speed of the dino (0 = stopped)
 GAME_OVER_MSG   STR     'GAME  OVER', 0
 
+; put all displays in a vector so we can loop through them
 SCORE_DISP      STR     DISP7_D0, DISP7_D1, DISP7_D2, DISP7_D3, DISP7_D4, DISP7_D5
-SCORE_DISP_NUM  EQU     6
 
                 ORIG    4000h ; board
                 
@@ -101,7 +103,7 @@ CheckStart:     MVI     R4, GAME_START  ; hold off game start until
                 MVI     R2, TIMER_SETSTART
                 STOR    M[R1], R2          ; start timer
 
-                ; Paint background
+                ; paint static background on game start
                 JAL     PRINT_TERRAIN_STATIC
 
                 ; Reset dino
@@ -273,7 +275,7 @@ PRINT_TERRAIN:  DEC     R6         ; PUSH R7, R4 & R5
                 STOR    M[R1], R2
 
                 MVI     R1, TERM_COLOR
-                MVI     R2, SKY_COLOR
+                MVI     R2, SKY_COLOR ; change writing color to sky
                 STOR    M[R1], R2
 
                 ; prepare loop variables
@@ -368,7 +370,7 @@ PRINT_TERRAIN_STATIC:
                 JMP     R7
 
 ;=================================================================
-; Print cactus  function that prints a cactus at a specific column
+; Print cactus: function that prints a cactus at a specific column
 ;               with a specific height
 ;   R1 -> column
 ;   R2 -> height
@@ -462,7 +464,6 @@ PRINT_DINO:
 ;                  the 7-segment display with the new score
 ;-----------------------------------------------------------------
 INCREMENT_SCORE:
-
                 ; SAVE CONTEXT
                 DEC     R6
                 STOR    M[R6], R4
@@ -508,8 +509,10 @@ INCREMENT_SCORE:
                 
 ;=================================================================
 ; HEX_DECIMAL: Takes a number in hexadecimal, returns remainder
-; of a division by ten and moves the quocient to the register
-; given as the argument
+; of a division by ten and and the quocient
+; R1 -> number to convert
+; R3 <- number converted (remainder)
+; STACK <- quocient of the number
 ;-----------------------------------------------------------------
 HEX_DECIMAL:    ;SAVE CONTEXT
                 DEC     R6
@@ -526,11 +529,11 @@ HEX_DECIMAL:    ;SAVE CONTEXT
                 BR.Z    .noDisplay
                 ; If argument is 10 (A in hexadecimal), return 0 and 
                 ; place the value 1 in R1
-                MVI     R5, 10
+                MVI     R5, DECIMAL_BASE
                 CMP     R1, R5
                 BR.Z    .scoreTen
                 
-                MVI     R2, 10
+                MVI     R2, DECIMAL_BASE
 
 .loop:          INC     R4
                 SUB     R1, R1, R2
@@ -560,7 +563,7 @@ HEX_DECIMAL:    ;SAVE CONTEXT
 .multipleOfTen: MOV     R3, R0  ; return remainder as 0
                 MOV     R1, R4  ; return quocient as the number of subtractions
 
-.exit:          ;RESTORE CONTEXT
+.exit:          ; RESTORE CONTEXT
                 LOAD    R4, M[R6]
                 INC     R6
                 LOAD    R5, M[R6]
@@ -568,7 +571,7 @@ HEX_DECIMAL:    ;SAVE CONTEXT
                 LOAD    R7, M[R6]
                 INC     R6
                 
-                ;SAVE SECOND RETURN VALUE
+                ; SAVE SECOND RETURN VALUE
                 DEC     R6          ; store quocient on stack
                 STOR    M[R6], R1   ; as R3 already returns another value
 
@@ -608,6 +611,7 @@ GRAVITY_LC:     MVI     R1, DINO_SPEED
 ;=================================================================
 ; CHECK_COLLISIONS: function that checks if the dino collided
 ;   If so, it returns 1 on R3, otherwise returns 0 on R3.
+; R3 <- collided?
 ;-----------------------------------------------------------------
 CHECK_COLLISIONS:
                 MVI     R1, TERRAIN_START
@@ -628,7 +632,7 @@ CHECK_COLLISIONS:
 
 ;=================================================================
 ; GAME_OVER: function that ends the game, and prints 'Game Over'
-;   in the terminal.
+;   in the terminal. It also resets all the values.
 ;-----------------------------------------------------------------
 GAME_OVER:      MVI     R1, GAME_START
                 STOR    M[R1], R0       ; stop game
@@ -746,18 +750,18 @@ KEYZERO:        ; SAVE CONTEXT
                 ORIG    7F30h
 KEYUP:          ; SAVE CONTEXT
                 DEC     R6
-                STOR    M[R6],R1
+                STOR    M[R6], R1
                 DEC     R6
                 STOR    M[R6], R2
                 DEC     R6
-                STOR    M[R6],R7
+                STOR    M[R6], R7
                 ; CALL AUXILIARY FUNCTION
                 JAL     AUX_KEYUP_ISR
                 ; RESTORE CONTEXT
-                LOAD    R7,M[R6]
+                LOAD    R7, M[R6]
                 INC     R6
                 LOAD    R2, M[R6]
                 INC     R6
-                LOAD    R1,M[R6]
+                LOAD    R1, M[R6]
                 INC     R6
                 RTI
